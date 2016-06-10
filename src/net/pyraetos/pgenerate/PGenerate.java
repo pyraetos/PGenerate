@@ -8,7 +8,7 @@ import net.pyraetos.util.Images;
 import net.pyraetos.util.Point;
 import net.pyraetos.util.Sys;
 
-public abstract class Tileset{
+public abstract class PGenerate{
 
 	private static LinkedList<LinkedList<Double>> tr = new LinkedList<LinkedList<Double>>();
 	private static long seed = Sys.randomSeed();
@@ -22,7 +22,7 @@ public abstract class Tileset{
 	public static final byte NULL = -128;
 	
 	public static void setSeed(long seed){
-		Tileset.seed = seed;
+		PGenerate.seed = seed;
 	}
 	
 	public static long getSeed(){
@@ -30,7 +30,7 @@ public abstract class Tileset{
 	}
 
 	public static void setEntropy(double s){
-		Tileset.s = s;
+		PGenerate.s = s;
 	}
 
 	/**
