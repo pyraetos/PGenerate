@@ -1,8 +1,13 @@
 package net.pyraetos.pgenerate;
 
+import java.awt.Color;
 import java.awt.Image;
-import java.util.LinkedList;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.Random;
+
+import javax.imageio.ImageIO;
 
 import net.pyraetos.util.Images;
 import net.pyraetos.util.Point;
@@ -10,7 +15,8 @@ import net.pyraetos.util.Sys;
 
 public abstract class PGenerate{
 
-	private static LinkedList<LinkedList<Double>> tr = new LinkedList<LinkedList<Double>>();
+	//private static PyrDeque<PyrDeque<Double>> tr = new PyrDeque<PyrDeque<Double>>();
+	private static double tr[][] = new double[Test.side][Test.side];
 	private static long seed = Sys.randomSeed();
 	private static int offsetX;
 	private static int offsetY;
@@ -33,11 +39,44 @@ public abstract class PGenerate{
 		PGenerate.s = s;
 	}
 
+	public static void createAndSaveHeightmap(){
+		BufferedImage image = createHeightmap();
+		try {
+			File file = new File("heightmap.png");
+			if(!file.exists())
+				file.createNewFile();
+			ImageIO.write(image, "png", file);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public static BufferedImage createHeightmap(){
+		int width = Test.side;
+		if(width == 0) return null;
+		int height = Test.side;
+		/*for(int i = 0; i < width; i++){
+			if(tr.get(0).size() > height)
+				height = tr.get(0).size();
+		}*/
+		int[] pixels = new int[width * height];
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				pixels[i * height + j] = getTileColor(i, j).getRGB();
+			}
+		}
+
+		BufferedImage pixelImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);    
+		pixelImage.setRGB(0, 0, width, height, pixels, 0, width);
+		
+		return pixelImage;
+	}
+
 	/**
 	 * Generates a single tile using the Pyraetos algorithm.
 	 * @author Pyraetos
 	 */
-	public static void pgenerate(int x, int y){
+	public static void generate(int x, int y){
 		double value = 0d;
 		for(int i = x - 1; i <= x + 1; i++)
 			for(int j = y - 1; j <= y + 1; j++)
@@ -78,6 +117,11 @@ public abstract class PGenerate{
 		return value;
 	}
 	
+	public static int coordsToIndex(int x, int y){
+		int i = (x << 16) | (y & 0xffffffff);
+		return i;
+	}
+	
 	public static byte getTileByte(int x, int y){
 		byte b = (byte)Math.floor(getTileDouble(x, y));
 		if(b == NULL) return NULL;
@@ -92,40 +136,48 @@ public abstract class PGenerate{
 
 	public static double getTileDouble(int x, int y){
 		try{
-			return tr.get(x + offsetX).get(y + offsetY);
+			return tr[x + offsetX][ y + offsetY];
 		}catch(Exception e){
 			return NULL;
 		}
+	}
+	
+	private static Color getTileColor(int x, int y){
+		double d = getTileDouble(x, y) + 1;
+		if(d <= 0) return Color.BLACK;
+		if(d >= 5) return Color.WHITE;
+		int c = (int)Math.round(d * (255d / 5d));
+		return new Color(c, c, c);
 	}
 
 	public static void setTileByte(int x, int y, byte type){
 		setTileDouble(x, y, (double)type);
 	}
-	
+
 	public static void setTileDouble(int x, int y, double d){
-		int dox = -x > offsetX ? -x - offsetX : 0;
-		int doy = -y > offsetY ? -y - offsetY : 0;
-		int xx = x + (offsetX += dox);
-		int yy = y + (offsetY += doy);
-		for(int i = 0; i < dox; i++){
-			tr.addFirst(new LinkedList<Double>());
-		}
-		for(int i = 0; i < tr.size(); i++){
-			for(int j = 0; j < doy; j++){
-				tr.get(i).addFirst(null);
+			int dox = -x > offsetX ? -x - offsetX : 0;
+			int doy = -y > offsetY ? -y - offsetY : 0;
+			int xx = x + (offsetX += dox);
+			int yy = y + (offsetY += doy);
+			/*for(int i = 0; i < dox; i++){
+				tr.addFirst(new PyrDeque<Double>());
 			}
-		}
-		while(xx >= tr.size()){
-			tr.addLast(new LinkedList<Double>());
-		}
-		for(int i = 0; i < tr.size(); i++){
-			while(yy >= tr.get(i).size()){
-				tr.get(i).addLast(null);
+			for(PyrDeque<Double> inner : tr){
+				for(int j = 0; j < doy; j++){
+					inner.addFirst(null);
+				}
 			}
-		}
-		tr.get(xx).set(yy, d);
+			while(xx >= tr.size()){
+				tr.addLast(new PyrDeque<Double>());
+			}
+			for(PyrDeque<Double> inner : tr){
+				while(yy >= inner.size()){
+					inner.addLast(null);
+				}
+			}*/
+			tr[xx][yy] = d;
 	}
-	
+
 	public static void setAdjacentTile(int x, int y, byte direction, byte type){
 		switch(direction){
 		case Sys.NORTH: setTileByte(x, y - 1, type); break;
