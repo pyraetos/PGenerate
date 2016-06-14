@@ -13,33 +13,65 @@ import net.pyraetos.util.Images;
 import net.pyraetos.util.Point;
 import net.pyraetos.util.Sys;
 
-public abstract class PGenerate{
+public class PGenerate{
 
-	//private static PyrDeque<PyrDeque<Double>> tr = new PyrDeque<PyrDeque<Double>>();
-	private static double tr[][] = new double[Test.side][Test.side];
-	private static long seed = Sys.randomSeed();
-	private static int offsetX;
-	private static int offsetY;
-	private static double s = 1.0d;
+	/*
+	 * Todo:
+	 * 
+	 * 1. extend coordinate system to negative numbers
+	 * 2. implement region based double layer data structure
+	 * 3. improve algorithm, increase scalability for large areas
+	 * 
+	 */
+	
+	private double tr[][];
+	private int width;
+	private int height;
+	private long seed;
+	private int offsetX;
+	private int offsetY;
+	private double s;
+	
 	public static final byte WATER = 0;
 	public static final byte SAND = 1;
 	public static final byte GRASS = 2;
 	public static final byte TREE = 3;
 	public static final byte NULL = -128;
 	
-	public static void setSeed(long seed){
-		PGenerate.seed = seed;
+	public PGenerate(int width, int height){
+		this.width = width;
+		this.height = height;
+		tr = new double[width][height];
+		seed = Sys.randomSeed();
+		offsetX = offsetY = 0;
+		s = 1d;
 	}
 	
-	public static long getSeed(){
+	public int getWidth(){
+		return width;
+	}
+	
+	public int getHeight(){
+		return height;
+	}
+	
+	public void setSeed(long seed){
+		this.seed = seed;
+	}
+	
+	public long getSeed(){
 		return seed;
 	}
 
-	public static void setEntropy(double s){
-		PGenerate.s = s;
+	public void setEntropy(double s){
+		this.s = s;
+	}
+	
+	public double getEntropy(){
+		return s;
 	}
 
-	public static void createAndSaveHeightmap(){
+	public void createAndSaveHeightmap(){
 		BufferedImage image = createHeightmap();
 		try {
 			File file = new File("heightmap.png");
@@ -51,14 +83,7 @@ public abstract class PGenerate{
 		}
 	}
 	
-	public static BufferedImage createHeightmap(){
-		int width = Test.side;
-		if(width == 0) return null;
-		int height = Test.side;
-		/*for(int i = 0; i < width; i++){
-			if(tr.get(0).size() > height)
-				height = tr.get(0).size();
-		}*/
+	public BufferedImage createHeightmap(){
 		int[] pixels = new int[width * height];
 		for (int i = 0; i < width; i++) {
 			for (int j = 0; j < height; j++) {
@@ -72,11 +97,7 @@ public abstract class PGenerate{
 		return pixelImage;
 	}
 
-	/**
-	 * Generates a single tile using the Pyraetos algorithm.
-	 * @author Pyraetos
-	 */
-	public static void generate(int x, int y){
+	public void generate(int x, int y){
 		double value = 0d;
 		for(int i = x - 1; i <= x + 1; i++)
 			for(int j = y - 1; j <= y + 1; j++)
@@ -89,7 +110,7 @@ public abstract class PGenerate{
 		*/
 	}
 	
-	private static double micro(int x, int y){
+	private double micro(int x, int y){
 		Random random = new Random();
 		double value = macro(x, y);
 		for(int i = x - 4; i <= x + 4; i++){
@@ -102,7 +123,7 @@ public abstract class PGenerate{
 		return value;
 	}
 	
-	private static double macro(int a, int b){
+	private  double macro(int a, int b){
 		int x = a < 0 ? a / 16 - 1 : a / 16;
 		int y = b < 0 ? b / 16 - 1 : b / 16;
 		Random random = new Random();
@@ -117,12 +138,7 @@ public abstract class PGenerate{
 		return value;
 	}
 	
-	public static int coordsToIndex(int x, int y){
-		int i = (x << 16) | (y & 0xffffffff);
-		return i;
-	}
-	
-	public static byte getTileByte(int x, int y){
+	public byte getTileByte(int x, int y){
 		byte b = (byte)Math.floor(getTileDouble(x, y));
 		if(b == NULL) return NULL;
 		if(b >= TREE) return TREE;
@@ -130,11 +146,11 @@ public abstract class PGenerate{
 		return b;
 	}
 	
-	public static byte getTileByte(Point point){
+	public byte getTileByte(Point point){
 		return getTileByte(point.getX(), point.getY());
 	}
 
-	public static double getTileDouble(int x, int y){
+	public double getTileDouble(int x, int y){
 		try{
 			return tr[x + offsetX][ y + offsetY];
 		}catch(Exception e){
@@ -142,7 +158,7 @@ public abstract class PGenerate{
 		}
 	}
 	
-	private static Color getTileColor(int x, int y){
+	private Color getTileColor(int x, int y){
 		double d = getTileDouble(x, y) + 1;
 		if(d <= 0) return Color.BLACK;
 		if(d >= 5) return Color.WHITE;
@@ -150,35 +166,15 @@ public abstract class PGenerate{
 		return new Color(c, c, c);
 	}
 
-	public static void setTileByte(int x, int y, byte type){
+	public void setTileByte(int x, int y, byte type){
 		setTileDouble(x, y, (double)type);
 	}
 
-	public static void setTileDouble(int x, int y, double d){
-			int dox = -x > offsetX ? -x - offsetX : 0;
-			int doy = -y > offsetY ? -y - offsetY : 0;
-			int xx = x + (offsetX += dox);
-			int yy = y + (offsetY += doy);
-			/*for(int i = 0; i < dox; i++){
-				tr.addFirst(new PyrDeque<Double>());
-			}
-			for(PyrDeque<Double> inner : tr){
-				for(int j = 0; j < doy; j++){
-					inner.addFirst(null);
-				}
-			}
-			while(xx >= tr.size()){
-				tr.addLast(new PyrDeque<Double>());
-			}
-			for(PyrDeque<Double> inner : tr){
-				while(yy >= inner.size()){
-					inner.addLast(null);
-				}
-			}*/
-			tr[xx][yy] = d;
+	public void setTileDouble(int x, int y, double d){
+		tr[x][y] = d;
 	}
 
-	public static void setAdjacentTile(int x, int y, byte direction, byte type){
+	public void setAdjacentTile(int x, int y, byte direction, byte type){
 		switch(direction){
 		case Sys.NORTH: setTileByte(x, y - 1, type); break;
 		case Sys.WEST: setTileByte(x - 1, y, type); break;
@@ -187,7 +183,7 @@ public abstract class PGenerate{
 		}
 	}
 	
-	public static byte getAdjacentTile(int x, int y, byte direction){
+	public byte getAdjacentTile(int x, int y, byte direction){
 		switch(direction){
 		case Sys.NORTH: return getTileByte(x, y - 1);
 		case Sys.WEST: return getTileByte(x - 1, y);
@@ -208,7 +204,7 @@ public abstract class PGenerate{
 		}
 	}
 	
-	public static String describe(double x, double y){
+	public String describe(int x, int y){
 		double tile = getTileDouble((int)x, (int)y);
 		byte t = (byte)tile;
 		String type = "NULL";
