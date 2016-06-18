@@ -1,17 +1,19 @@
 package net.pyraetos.pgenerate;
 
 import java.awt.Color;
-import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.imageio.ImageIO;
 
-import net.pyraetos.util.Images;
 import net.pyraetos.util.Point;
 import net.pyraetos.util.Sys;
+import net.pyraetos.util.Tuple3;
 
 public class PGenerate{
 
@@ -20,7 +22,6 @@ public class PGenerate{
 	 * 
 	 * 1. extend coordinate system to negative numbers
 	 * 2. implement region based double layer data structure
-	 * 3. improve algorithm, increase scalability for large areas
 	 * 
 	 */
 	
@@ -28,23 +29,29 @@ public class PGenerate{
 	private int width;
 	private int height;
 	private long seed;
+	private int seedUpper;
+	private int seedLower;
 	private int offsetX;
 	private int offsetY;
 	private double s;
+	private Map<Point, Double> gaussianMap;
+	private Map<Tuple3<Integer, Integer, Integer>, Double> rawValueMap;
 	
-	public static final byte WATER = 0;
-	public static final byte SAND = 1;
-	public static final byte GRASS = 2;
-	public static final byte TREE = 3;
-	public static final byte NULL = -128;
+	public static final double NULL = 0.0d;
 	
 	public PGenerate(int width, int height){
+		this(width, height, Sys.randomSeed());
+	}
+	
+	public PGenerate(int width, int height, long seed){
 		this.width = width;
 		this.height = height;
 		tr = new double[width][height];
-		seed = Sys.randomSeed();
+		setSeed(seed);
 		offsetX = offsetY = 0;
 		s = 1d;
+		rawValueMap = new ConcurrentHashMap<Tuple3<Integer, Integer, Integer>, Double>();
+		gaussianMap = new ConcurrentHashMap<Point, Double>();
 	}
 	
 	public int getWidth(){
@@ -57,6 +64,8 @@ public class PGenerate{
 	
 	public void setSeed(long seed){
 		this.seed = seed;
+		this.seedUpper = (int)(seed >> 32);
+		this.seedLower = (int)seed;
 	}
 	
 	public long getSeed(){
@@ -96,13 +105,18 @@ public class PGenerate{
 		
 		return pixelImage;
 	}
-
+	
 	public void generate(int x, int y){
 		double value = 0d;
 		for(int i = x - 1; i <= x + 1; i++)
-			for(int j = y - 1; j <= y + 1; j++)
-				value += micro(i, j);
-		setTileDouble(x, y, value / 9d);
+			for(int j = y - 1; j <= y + 1; j++){
+				value += noise(x, y, 4);
+				value += noise(x, y, 3) / 2d;
+				value += noise(x, y, 2) / 4d;
+				value += noise(x, y, 1) / 8d;
+				value += noise(x, y, 0) / 16d;
+			}
+		setValue(x, y, value / 9d);
 		//Good place to add mobs and rare objects
 		/*if(Sys.chance(.0005d)){
 			
@@ -110,109 +124,98 @@ public class PGenerate{
 		*/
 	}
 	
-	private double micro(int x, int y){
-		Random random = new Random();
-		double value = macro(x, y);
-		for(int i = x - 4; i <= x + 4; i++){
-			for(int j = y - 4; j <= y + 4; j++){
-				random.setSeed(seed * 17717171L + i * 22222223L + j * 111181111L);
-				double h = (x == i && y == j) ? 1 : Math.sqrt(Math.pow(x - i, 2) + Math.pow(y - j, 2));
-				value += (random.nextGaussian() * s) / (3d * h);
-			}
-		}
-		return value;
-	}
-	
-	private  double macro(int a, int b){
-		int x = a < 0 ? a / 16 - 1 : a / 16;
-		int y = b < 0 ? b / 16 - 1 : b / 16;
-		Random random = new Random();
-		double value = 2d;
-		for(int i = x - 4; i <= x + 4; i++){
-			for(int j = y - 4; j <= y + 4; j++){
-				random.setSeed(seed * 17717171L + i * 22222223L + j * 111181111L);
-				double h = (x == i && y == j) ? 1 : Math.sqrt(Math.pow(x - i, 2) + Math.pow(y - j, 2));
-				value += (random.nextGaussian() * s) / (3d * h);
-			}
-		}
-		return value;
-	}
-	
-	public byte getTileByte(int x, int y){
-		byte b = (byte)Math.floor(getTileDouble(x, y));
-		if(b == NULL) return NULL;
-		if(b >= TREE) return TREE;
-		if(b <= WATER) return WATER;
+	private byte[] getMaskedSeed(int x, int y, int power){
+		x ^= power == 0 ? seedUpper : seedUpper ^ power;
+		y ^= power == 0 ? seedLower : seedLower ^ power;
+		byte[] b = new byte[8];
+		b[0] = (byte)(x >> 24);
+		b[1] = (byte)(x >> 16);
+		b[2] = (byte)(x >> 8);
+		b[3] = (byte)x;
+		b[4] = (byte)(y >> 24);
+		b[5] = (byte)(y >> 16);
+		b[6] = (byte)(y >> 8);
+		b[7] = (byte)y;
 		return b;
 	}
 	
-	public byte getTileByte(Point point){
-		return getTileByte(point.getX(), point.getY());
+	private double rawValue(int x, int y, int w, int power){
+		Tuple3<Integer, Integer, Integer> tup = new Tuple3<Integer, Integer, Integer>(x, y, power);
+		if(rawValueMap.containsKey(tup))
+			return rawValueMap.get(tup);
+		double value = 0d;
+		for(int i = x - w; i <= x + w; i++){
+			for(int j = y - w; j <= y + w; j++){
+				int dx = x - i;
+				int dy = y - j;
+				double h = (x == i && y == j) ? 1 : Math.sqrt(dx * dx + dy * dy);
+				Point point = new Point(i, j);
+				if(!gaussianMap.containsKey(point)){
+					Random random = new SecureRandom(getMaskedSeed(i, j, power));
+					double rawValue = random.nextGaussian();
+					gaussianMap.put(point, rawValue);
+				}
+				value += (gaussianMap.get(point) * s) / (4d * h);
+			}
+		}
+		rawValueMap.put(tup, value);
+		return value;
+	}
+	
+	private double noise(int a, int b, int power){
+		if(power < 0)
+			return 0d;
+		if(power == 0)
+			return rawValue(a, b, 4, power);
+		
+		int range = power;
+		int x = a < 0 ? a >> range - 1 : a >> range;
+		int y = b < 0 ? b >> range - 1 : b >> range;
+		int xFloor = x << range;
+		int yFloor = y << range;
+		
+		double div = Math.pow(2d, power);
+		double prop_left = ((double)(a - xFloor)) / div;
+		double prop_up = ((double)(b - yFloor)) / div;
+		
+		double wnw = (1 - prop_left) * (1 - prop_up);
+		double wsw = (1 - prop_left) * prop_up;
+		double wne = prop_left * (1 - prop_up);
+		double wse = prop_left * prop_up;
+		
+		int w = 4;
+		double base = 0d;
+		
+		double vnw = rawValue(x, y, w, power);
+		double vsw = rawValue(x, y + 1, w, power);
+		double vne = rawValue(x + 1, y, w, power);
+		double vse = rawValue(x + 1, y + 1, w, power);
+		
+		base += wnw * vnw;
+		base += wsw * vsw;
+		base += wne * vne;
+		base += wse * vse;
+		
+		return base;
 	}
 
-	public double getTileDouble(int x, int y){
+	public double getValue(int x, int y){
 		try{
-			return tr[x + offsetX][ y + offsetY];
+			return tr[x + offsetX][y + offsetY];
 		}catch(Exception e){
-			return NULL;
+			return 0.0d;
 		}
 	}
 	
 	private Color getTileColor(int x, int y){
-		double d = getTileDouble(x, y) + 1;
-		if(d <= 0) return Color.BLACK;
-		if(d >= 5) return Color.WHITE;
-		int c = (int)Math.round(d * (255d / 5d));
+		double d = getValue(x, y);
+		if(d <= -3) return Color.BLACK;
+		if(d >= 3) return Color.WHITE;
+		int c = (int)Math.round((d + 3) * (255d / 6d));
 		return new Color(c, c, c);
 	}
 
-	public void setTileByte(int x, int y, byte type){
-		setTileDouble(x, y, (double)type);
-	}
-
-	public void setTileDouble(int x, int y, double d){
+	public void setValue(int x, int y, double d){
 		tr[x][y] = d;
 	}
-
-	public void setAdjacentTile(int x, int y, byte direction, byte type){
-		switch(direction){
-		case Sys.NORTH: setTileByte(x, y - 1, type); break;
-		case Sys.WEST: setTileByte(x - 1, y, type); break;
-		case Sys.SOUTH: setTileByte(x, y + 1, type); break;
-		case Sys.EAST: setTileByte(x + 1, y, type); break;
-		}
-	}
-	
-	public byte getAdjacentTile(int x, int y, byte direction){
-		switch(direction){
-		case Sys.NORTH: return getTileByte(x, y - 1);
-		case Sys.WEST: return getTileByte(x - 1, y);
-		case Sys.SOUTH: return getTileByte(x, y + 1);
-		case Sys.EAST: return getTileByte(x + 1, y);
-		}
-		return 0;
-	}
-	
-	public static Image imageFor(byte type){
-		switch(type){
-		case GRASS: return Images.retrieve("grass.png");
-		case SAND: return Images.retrieve("sand.png");
-		case WATER: return Images.retrieve("water.png");
-		case TREE: return Images.retrieve("tree.png");
-		case NULL: return Images.retrieve("null.png");
-		default: return Images.retrieve("null.png");
-		}
-	}
-	
-	public String describe(int x, int y){
-		double tile = getTileDouble((int)x, (int)y);
-		byte t = (byte)tile;
-		String type = "NULL";
-		if(t <= 0) type = "WATER"; else
-		if(t == 1) type = "SAND"; else
-		if(t == 2) type = "GRASS"; else
-		if(t >= 3) type = "TREE";
-		return Sys.round(tile) + " (" + type + ")";
-	}
-
 }	

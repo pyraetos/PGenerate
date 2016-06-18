@@ -6,8 +6,8 @@ import net.pyraetos.util.Sys;
 
 public class Test {
 
-	public static int side = 500;
-	public static int inc = 25;
+	public static int side = 1000;
+	public static int inc = 50;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
