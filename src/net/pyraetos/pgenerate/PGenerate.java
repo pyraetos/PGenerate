@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.imageio.ImageIO;
 
+import net.pyraetos.util.MatrixD;
 import net.pyraetos.util.Point;
 import net.pyraetos.util.Sys;
 import net.pyraetos.util.Tuple3;
@@ -36,9 +37,29 @@ public class PGenerate{
 	private double s;
 	private Map<Point, Double> gaussianMap;
 	private Map<Tuple3<Integer, Integer, Integer>, Double> rawValueMap;
+	private int interpolation;
 	
-	public static final double NULL = 0.0d;
+	public static final int NEAREST_NEIGHBOR = 0;
+	public static final int BILINEAR = 1;
+	public static final int BICUBIC = 2;
 	
+	private static final MatrixD matrixA;
+	private static final MatrixD matrixC;
+
+	static{
+		matrixA = new MatrixD(4, 4);
+		matrixA.setRow(0, 1d, 0d, 0d, 0d);
+		matrixA.setRow(1, 0d, 0d, 1d, 0d);
+		matrixA.setRow(2, -3d, 3d, -2d, -1d);
+		matrixA.setRow(3, 2d, -2d, 1d, 1d);
+		
+		matrixC = new MatrixD(4, 4);
+		matrixC.setColumn(0, 1d, 0d, 0d, 0d);
+		matrixC.setColumn(1, 0d, 0d, 1d, 0d);
+		matrixC.setColumn(2, -3d, 3d, -2d, -1d);
+		matrixC.setColumn(3, 2d, -2d, 1d, 1d);
+	}
+
 	public PGenerate(int width, int height){
 		this(width, height, Sys.randomSeed());
 	}
@@ -52,6 +73,13 @@ public class PGenerate{
 		s = 1d;
 		rawValueMap = new ConcurrentHashMap<Tuple3<Integer, Integer, Integer>, Double>();
 		gaussianMap = new ConcurrentHashMap<Point, Double>();
+		setInterpolation(BICUBIC);
+	}
+	
+	public void setInterpolation(int interp){
+		if(interp < 0 || interp > 2)
+			return;
+		interpolation = interp;
 	}
 	
 	public int getWidth(){
@@ -108,7 +136,7 @@ public class PGenerate{
 	
 	public void generate(int x, int y){
 		double value = 0d;
-		for(int i = x - 1; i <= x + 1; i++)
+		for(int i = x - 1; i <= x + 1; i++){
 			for(int j = y - 1; j <= y + 1; j++){
 				value += noise(x, y, 4);
 				value += noise(x, y, 3) / 2d;
@@ -116,12 +144,22 @@ public class PGenerate{
 				value += noise(x, y, 1) / 8d;
 				value += noise(x, y, 0) / 16d;
 			}
+		}
 		setValue(x, y, value / 9d);
 		//Good place to add mobs and rare objects
 		/*if(Sys.chance(.0005d)){
 			
 		}
 		*/
+	}
+	
+	public double noise(int x, int y, int power){
+		switch(interpolation){
+		case NEAREST_NEIGHBOR: return nearestNeighbor(x, y, power);
+		case BILINEAR: return bilinear(x, y, power);
+		case BICUBIC: return bicubic(x, y, power);
+		default: return 0d;
+		}
 	}
 	
 	private byte[] getMaskedSeed(int x, int y, int power){
@@ -162,17 +200,30 @@ public class PGenerate{
 		return value;
 	}
 	
-	private double noise(int a, int b, int power){
+	private double nearestNeighbor(int a, int b, int power){
 		if(power < 0)
 			return 0d;
 		if(power == 0)
 			return rawValue(a, b, 4, power);
 		
-		int range = power;
-		int x = a < 0 ? a >> range - 1 : a >> range;
-		int y = b < 0 ? b >> range - 1 : b >> range;
-		int xFloor = x << range;
-		int yFloor = y << range;
+		int x = a < 0 ? a >> power - 1 : a >> power;
+		int y = b < 0 ? b >> power - 1 : b >> power;
+
+		int w = 4;
+		
+		return rawValue(x, y, w, power);
+	}
+	
+	private double bilinear(int a, int b, int power){
+		if(power < 0)
+			return 0d;
+		if(power == 0)
+			return rawValue(a, b, 4, power);
+		
+		int x = a < 0 ? a >> power - 1 : a >> power;
+		int y = b < 0 ? b >> power - 1 : b >> power;
+		int xFloor = x << power;
+		int yFloor = y << power;
 		
 		double div = Math.pow(2d, power);
 		double prop_left = ((double)(a - xFloor)) / div;
@@ -197,6 +248,78 @@ public class PGenerate{
 		base += wse * vse;
 		
 		return base;
+	}
+	
+	private double bicubic(int a, int b, int power){
+		if(power < 0)
+			return 0d;
+		if(power == 0)
+			return rawValue(a, b, 4, power);
+		
+		int x0 = a < 0 ? a >> power - 1 : a >> power;
+		int y0 = b < 0 ? b >> power - 1 : b >> power;
+		int xFloor = x0 << power;
+		int yFloor = y0 << power;
+		int x1 = x0 + 1;
+		int y1 = y0 + 1;
+		int xn1 = x0 - 1;
+		int yn1 = y0 - 1;
+		int x2 = x1 + 1;
+		int y2 = y1 + 1;
+		
+		double div = Math.pow(2d, power);
+		double mappedX = ((double)(a - xFloor)) / div;
+		double mappedY = ((double)(b - yFloor)) / div;
+		
+		int w = 4;
+		
+		//Obtain the 16 values we need
+		//1. The function values
+		double f00 = rawValue(x0, y0, w, power);
+		double f01 = rawValue(x0, y1, w, power);
+		double f10 = rawValue(x1, y0, w, power);
+		double f11 = rawValue(x1, y1, w, power);
+
+		//2. The x partial derivatives
+		double fx00 = (rawValue(x1, y0, w, power) - rawValue(xn1, y0, w, power)) / 2d;
+		double fx01 = (rawValue(x1, y1, w, power) - rawValue(xn1, y1, w, power)) / 2d;
+		double fx10 = (rawValue(x2, y0, w, power) - rawValue(x0, y0, w, power)) / 2d;
+		double fx11 = (rawValue(x2, y1, w, power) - rawValue(x0, y1, w, power)) / 2d;
+
+		//3. The y partial derivatives
+		double fy00 = (rawValue(x0, y1, w, power) - rawValue(x0, yn1, w, power)) / 2d;
+		double fy01 = (rawValue(x0, y2, w, power) - rawValue(x0, y0, w, power)) / 2d;
+		double fy10 = (rawValue(x1, y1, w, power) - rawValue(x1, yn1, w, power)) / 2d;
+		double fy11 = (rawValue(x1, y2, w, power) - rawValue(x1, y0, w, power)) / 2d;
+		
+		//4. The cross derivatives
+		double fxy00 = (fx01 - ((rawValue(x1, yn1, w, power) - rawValue(xn1, yn1, w, power)) / 2d)) / 2d;
+		double fxy01 = (((rawValue(x1, y2, w, power) - rawValue(xn1, y2, w, power)) / 2d) - fx00) / 2d;
+		double fxy10 = (fx11 - ((rawValue(x2, yn1, w, power) - rawValue(x0, yn1, w, power)) / 2d)) / 2d;
+		double fxy11 = (((rawValue(x2, y2, w, power) - rawValue(x0, y2, w, power)) / 2d) - fx10) / 2d;		
+
+		//Create the beta matrix
+		MatrixD matrixB = new MatrixD(4, 4);
+		matrixB.setRow(0, f00, f01, fy00, fy01);
+		matrixB.setRow(1, f10, f11, fy10, fy11);
+		matrixB.setRow(2, fx00, fx01, fxy00, fxy01);
+		matrixB.setRow(3, fx10, fx11, fxy10, fxy11);
+		
+		//Perform the multiplication for the coefficient matrix
+		MatrixD coeffMatrix = matrixA.multiply(matrixB.multiply(matrixC));
+		
+		//Create the vectors for our point
+		MatrixD vecX = new MatrixD(4, 1);
+		vecX.setRow(0, 1d, (double)mappedX, Math.pow((double)mappedX, 2d), Math.pow((double)mappedX, 3d));
+	
+		MatrixD vecY = new MatrixD(1, 4);
+		vecY.setColumn(0, 1d, (double)mappedY, Math.pow((double)mappedY, 2d), Math.pow((double)mappedY, 3d));
+		
+		//Perform the final multiplication and extract the interpolated value
+		MatrixD valueMatrix = vecX.multiply(coeffMatrix.multiply(vecY));
+		
+		double value = valueMatrix.get(0, 0);
+		return value;
 	}
 
 	public double getValue(int x, int y){

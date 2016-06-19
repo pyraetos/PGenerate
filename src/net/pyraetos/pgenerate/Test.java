@@ -6,8 +6,8 @@ import net.pyraetos.util.Sys;
 
 public class Test {
 
-	public static int side = 1000;
-	public static int inc = 50;
+	public static int side = 256;
+	public static int inc = 256;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
@@ -32,7 +32,7 @@ public class Test {
 	}
 	
 	public static void main(String[] args) {
-		pg = new PGenerate(side, side);
+		pg = new PGenerate(side, side, 25346);
 		long start = System.currentTimeMillis();
 		for(int n = 0; n < side; n += inc){
 			Sys.thread(new DivNConq(n));
