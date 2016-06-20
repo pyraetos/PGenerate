@@ -24,7 +24,7 @@ public abstract class PixelMap extends BufferedImage{
 
 	public void save(){
 		try {
-			File file = new File("heightmap.png");
+			File file = new File("map.png");
 			if(!file.exists())
 				file.createNewFile();
 			ImageIO.write(this, "png", file);
@@ -33,9 +33,9 @@ public abstract class PixelMap extends BufferedImage{
 		}
 	}
 	
-	public void save(String directory){
+	public void save(String path){
 		try {
-			File file = new File(directory + File.separator + "heightmap.png");
+			File file = new File(path);
 			if(!file.exists())
 				file.createNewFile();
 			ImageIO.write(this, "png", file);
