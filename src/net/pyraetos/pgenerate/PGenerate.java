@@ -1,15 +1,9 @@
 package net.pyraetos.pgenerate;
 
-import java.awt.Color;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-
-import javax.imageio.ImageIO;
 
 import net.pyraetos.util.MatrixD;
 import net.pyraetos.util.Point;
@@ -35,8 +29,10 @@ public class PGenerate{
 	private int offsetX;
 	private int offsetY;
 	private double s;
-	private Map<Point, Double> gaussianMap;
+	private int w;
+	private Map<Tuple3<Integer, Integer, Integer>, Double> gaussianMap;
 	private Map<Tuple3<Integer, Integer, Integer>, Double> rawValueMap;
+	private Map<Point, Double> generatedMap;
 	private int interpolation;
 	
 	public static final int NEAREST_NEIGHBOR = 0;
@@ -71,8 +67,10 @@ public class PGenerate{
 		setSeed(seed);
 		offsetX = offsetY = 0;
 		s = 1d;
+		w = 4;
 		rawValueMap = new ConcurrentHashMap<Tuple3<Integer, Integer, Integer>, Double>();
-		gaussianMap = new ConcurrentHashMap<Point, Double>();
+		gaussianMap = new ConcurrentHashMap<Tuple3<Integer, Integer, Integer>, Double>();
+		generatedMap = new ConcurrentHashMap<Point, Double>();
 		setInterpolation(BICUBIC);
 	}
 	
@@ -107,45 +105,37 @@ public class PGenerate{
 	public double getEntropy(){
 		return s;
 	}
-
-	public void createAndSaveHeightmap(){
-		BufferedImage image = createHeightmap();
-		try {
-			File file = new File("heightmap.png");
-			if(!file.exists())
-				file.createNewFile();
-			ImageIO.write(image, "png", file);
-		} catch (IOException e) {
-			e.printStackTrace();
+	
+	public double getValue(int x, int y){
+		try{
+			return tr[x + offsetX][y + offsetY];
+		}catch(Exception e){
+			return 0.0d;
 		}
 	}
-	
-	public BufferedImage createHeightmap(){
-		int[] pixels = new int[width * height];
-		for (int i = 0; i < width; i++) {
-			for (int j = 0; j < height; j++) {
-				pixels[i * height + j] = getTileColor(i, j).getRGB();
-			}
-		}
 
-		BufferedImage pixelImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);    
-		pixelImage.setRGB(0, 0, width, height, pixels, 0, width);
-		
-		return pixelImage;
+	public void setValue(int x, int y, double d){
+		tr[x][y] = d;
 	}
 	
 	public void generate(int x, int y){
 		double value = 0d;
 		for(int i = x - 1; i <= x + 1; i++){
 			for(int j = y - 1; j <= y + 1; j++){
-				value += noise(x, y, 4);
-				value += noise(x, y, 3) / 2d;
-				value += noise(x, y, 2) / 4d;
-				value += noise(x, y, 1) / 8d;
-				value += noise(x, y, 0) / 16d;
+				Point point = new Point(i, j);
+				if(!generatedMap.containsKey(point)){
+					double pointValue = 0d;
+					pointValue += noise(i, j, 4);
+					pointValue += noise(i, j, 3) / 2d;
+					pointValue += noise(i, j, 2) / 4d;
+					pointValue += noise(i, j, 1) / 8d;
+					pointValue += noise(i, j, 0) / 16d;
+					generatedMap.put(point, pointValue);
+				}
+				value += generatedMap.get(point);
 			}
 		}
-		setValue(x, y, value / 9d);
+		setValue(y, x, value / 9d);
 		//Good place to add mobs and rare objects
 		/*if(Sys.chance(.0005d)){
 			
@@ -177,7 +167,7 @@ public class PGenerate{
 		return b;
 	}
 	
-	private double rawValue(int x, int y, int w, int power){
+	private double rawValue(int x, int y, int power){
 		Tuple3<Integer, Integer, Integer> tup = new Tuple3<Integer, Integer, Integer>(x, y, power);
 		if(rawValueMap.containsKey(tup))
 			return rawValueMap.get(tup);
@@ -187,13 +177,13 @@ public class PGenerate{
 				int dx = x - i;
 				int dy = y - j;
 				double h = (x == i && y == j) ? 1 : Math.sqrt(dx * dx + dy * dy);
-				Point point = new Point(i, j);
-				if(!gaussianMap.containsKey(point)){
+				Tuple3<Integer, Integer, Integer> gtup = new Tuple3<Integer, Integer, Integer>(i, j, power);
+				if(!gaussianMap.containsKey(gtup)){
 					Random random = new SecureRandom(getMaskedSeed(i, j, power));
 					double rawValue = random.nextGaussian();
-					gaussianMap.put(point, rawValue);
+					gaussianMap.put(gtup, rawValue);
 				}
-				value += (gaussianMap.get(point) * s) / (4d * h);
+				value += (gaussianMap.get(gtup) * s) / (4d * h);
 			}
 		}
 		rawValueMap.put(tup, value);
@@ -204,21 +194,19 @@ public class PGenerate{
 		if(power < 0)
 			return 0d;
 		if(power == 0)
-			return rawValue(a, b, 4, power);
+			return rawValue(a, b, power);
 		
 		int x = a < 0 ? a >> power - 1 : a >> power;
 		int y = b < 0 ? b >> power - 1 : b >> power;
-
-		int w = 4;
 		
-		return rawValue(x, y, w, power);
+		return rawValue(x, y, power);
 	}
 	
 	private double bilinear(int a, int b, int power){
 		if(power < 0)
 			return 0d;
 		if(power == 0)
-			return rawValue(a, b, 4, power);
+			return rawValue(a, b, power);
 		
 		int x = a < 0 ? a >> power - 1 : a >> power;
 		int y = b < 0 ? b >> power - 1 : b >> power;
@@ -233,14 +221,13 @@ public class PGenerate{
 		double wsw = (1 - prop_left) * prop_up;
 		double wne = prop_left * (1 - prop_up);
 		double wse = prop_left * prop_up;
-		
-		int w = 4;
+
 		double base = 0d;
 		
-		double vnw = rawValue(x, y, w, power);
-		double vsw = rawValue(x, y + 1, w, power);
-		double vne = rawValue(x + 1, y, w, power);
-		double vse = rawValue(x + 1, y + 1, w, power);
+		double vnw = rawValue(x, y, power);
+		double vsw = rawValue(x, y + 1, power);
+		double vne = rawValue(x + 1, y, power);
+		double vse = rawValue(x + 1, y + 1, power);
 		
 		base += wnw * vnw;
 		base += wsw * vsw;
@@ -254,7 +241,7 @@ public class PGenerate{
 		if(power < 0)
 			return 0d;
 		if(power == 0)
-			return rawValue(a, b, 4, power);
+			return rawValue(a, b, power);
 		
 		int x0 = a < 0 ? a >> power - 1 : a >> power;
 		int y0 = b < 0 ? b >> power - 1 : b >> power;
@@ -271,32 +258,30 @@ public class PGenerate{
 		double mappedX = ((double)(a - xFloor)) / div;
 		double mappedY = ((double)(b - yFloor)) / div;
 		
-		int w = 4;
-		
 		//Obtain the 16 values we need
 		//1. The function values
-		double f00 = rawValue(x0, y0, w, power);
-		double f01 = rawValue(x0, y1, w, power);
-		double f10 = rawValue(x1, y0, w, power);
-		double f11 = rawValue(x1, y1, w, power);
+		double f00 = rawValue(x0, y0, power);
+		double f01 = rawValue(x0, y1, power);
+		double f10 = rawValue(x1, y0, power);
+		double f11 = rawValue(x1, y1, power);
 
 		//2. The x partial derivatives
-		double fx00 = (rawValue(x1, y0, w, power) - rawValue(xn1, y0, w, power)) / 2d;
-		double fx01 = (rawValue(x1, y1, w, power) - rawValue(xn1, y1, w, power)) / 2d;
-		double fx10 = (rawValue(x2, y0, w, power) - rawValue(x0, y0, w, power)) / 2d;
-		double fx11 = (rawValue(x2, y1, w, power) - rawValue(x0, y1, w, power)) / 2d;
+		double fx00 = (rawValue(x1, y0, power) - rawValue(xn1, y0, power)) / 2d;
+		double fx01 = (rawValue(x1, y1, power) - rawValue(xn1, y1, power)) / 2d;
+		double fx10 = (rawValue(x2, y0, power) - rawValue(x0, y0, power)) / 2d;
+		double fx11 = (rawValue(x2, y1, power) - rawValue(x0, y1, power)) / 2d;
 
 		//3. The y partial derivatives
-		double fy00 = (rawValue(x0, y1, w, power) - rawValue(x0, yn1, w, power)) / 2d;
-		double fy01 = (rawValue(x0, y2, w, power) - rawValue(x0, y0, w, power)) / 2d;
-		double fy10 = (rawValue(x1, y1, w, power) - rawValue(x1, yn1, w, power)) / 2d;
-		double fy11 = (rawValue(x1, y2, w, power) - rawValue(x1, y0, w, power)) / 2d;
+		double fy00 = (rawValue(x0, y1, power) - rawValue(x0, yn1, power)) / 2d;
+		double fy01 = (rawValue(x0, y2, power) - rawValue(x0, y0, power)) / 2d;
+		double fy10 = (rawValue(x1, y1, power) - rawValue(x1, yn1, power)) / 2d;
+		double fy11 = (rawValue(x1, y2, power) - rawValue(x1, y0, power)) / 2d;
 		
 		//4. The cross derivatives
-		double fxy00 = (fx01 - ((rawValue(x1, yn1, w, power) - rawValue(xn1, yn1, w, power)) / 2d)) / 2d;
-		double fxy01 = (((rawValue(x1, y2, w, power) - rawValue(xn1, y2, w, power)) / 2d) - fx00) / 2d;
-		double fxy10 = (fx11 - ((rawValue(x2, yn1, w, power) - rawValue(x0, yn1, w, power)) / 2d)) / 2d;
-		double fxy11 = (((rawValue(x2, y2, w, power) - rawValue(x0, y2, w, power)) / 2d) - fx10) / 2d;		
+		double fxy00 = (fx01 - ((rawValue(x1, yn1, power) - rawValue(xn1, yn1, power)) / 2d)) / 2d;
+		double fxy01 = (((rawValue(x1, y2, power) - rawValue(xn1, y2, power)) / 2d) - fx00) / 2d;
+		double fxy10 = (fx11 - ((rawValue(x2, yn1, power) - rawValue(x0, yn1, power)) / 2d)) / 2d;
+		double fxy11 = (((rawValue(x2, y2, power) - rawValue(x0, y2, power)) / 2d) - fx10) / 2d;		
 
 		//Create the beta matrix
 		MatrixD matrixB = new MatrixD(4, 4);
@@ -320,25 +305,5 @@ public class PGenerate{
 		
 		double value = valueMatrix.get(0, 0);
 		return value;
-	}
-
-	public double getValue(int x, int y){
-		try{
-			return tr[x + offsetX][y + offsetY];
-		}catch(Exception e){
-			return 0.0d;
-		}
-	}
-	
-	private Color getTileColor(int x, int y){
-		double d = getValue(x, y);
-		if(d <= -3) return Color.BLACK;
-		if(d >= 3) return Color.WHITE;
-		int c = (int)Math.round((d + 3) * (255d / 6d));
-		return new Color(c, c, c);
-	}
-
-	public void setValue(int x, int y, double d){
-		tr[x][y] = d;
 	}
 }	
