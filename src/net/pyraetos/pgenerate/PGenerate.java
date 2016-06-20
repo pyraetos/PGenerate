@@ -125,6 +125,7 @@ public class PGenerate{
 				Point point = new Point(i, j);
 				if(!generatedMap.containsKey(point)){
 					double pointValue = 0d;
+					
 					pointValue += noise(i, j, 4);
 					pointValue += noise(i, j, 3) / 2d;
 					pointValue += noise(i, j, 2) / 4d;
@@ -139,8 +140,7 @@ public class PGenerate{
 		//Good place to add mobs and rare objects
 		/*if(Sys.chance(.0005d)){
 			
-		}
-		*/
+		}*/
 	}
 	
 	public double noise(int x, int y, int power){
@@ -153,8 +153,8 @@ public class PGenerate{
 	}
 	
 	private byte[] getMaskedSeed(int x, int y, int power){
-		x ^= power == 0 ? seedUpper : seedUpper ^ power;
-		y ^= power == 0 ? seedLower : seedLower ^ power;
+		x ^= seedUpper ^ power;
+		y ^= seedLower ^ power;
 		byte[] b = new byte[8];
 		b[0] = (byte)(x >> 24);
 		b[1] = (byte)(x >> 16);

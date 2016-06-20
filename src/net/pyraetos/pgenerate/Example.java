@@ -4,19 +4,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import net.pyraetos.util.Sys;
 
-public class Test {
+public abstract class Example {
 
-	public static int side = 1000;
-	public static int inc = 50;
+	public static int side = 500;
+	public static int inc = 25;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
 	
-	private static class DivNConq implements Runnable{
+	private static class DivideNConquer implements Runnable{
 		
 		int start;
 		
-		DivNConq(int start){
+		DivideNConquer(int start){
 			this.start = start;
 		}
 		
@@ -32,10 +32,10 @@ public class Test {
 	}
 	
 	public static void main(String[] args) {
-		pg = new PGenerate(side, side, 32450);
+		pg = new PGenerate(side, side);
 		long start = System.currentTimeMillis();
 		for(int n = 0; n < side; n += inc){
-			Sys.thread(new DivNConq(n));
+			Sys.thread(new DivideNConquer(n));
 		}
 		while(done.get() != side / inc){
 			try {
