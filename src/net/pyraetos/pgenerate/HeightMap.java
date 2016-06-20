@@ -2,9 +2,9 @@ package net.pyraetos.pgenerate;
 
 import java.awt.Color;
 
-public class Heightmap extends PixelMap {
+public class HeightMap extends PixelMap {
 
-	public Heightmap(PGenerate pg) {
+	public HeightMap(PGenerate pg) {
 		super(pg);
 	}
 	

@@ -47,7 +47,7 @@ public class Test {
 		long time = System.currentTimeMillis() - start;
 		float seconds = (float) (((double)time)/1000d);
 		Sys.debug("It took " + seconds + "s to complete.");
-		new Heightmap(pg).save();
+		new TerrainMap(pg).save();
 	}
 
 }
