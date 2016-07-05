@@ -5,18 +5,20 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
-import net.pyraetos.util.MatrixF;
+import net.pyraetos.util.Matrix;
 import net.pyraetos.util.Point;
 import net.pyraetos.util.Sys;
 import net.pyraetos.util.Tuple3;
+import net.pyraetos.util.Vector;
 
 public class PGenerate{
 
 	/*
 	 * Todo:
 	 * 
-	 * 1. extend coordinate system to negative numbers
-	 * 2. implement region based double layer data structure
+	 * 1. fix bicubic for new matrices
+	 * 2. extend coordinate system to negative numbers
+	 * 3. implement region based double layer data structure
 	 * 
 	 */
 	
@@ -39,21 +41,12 @@ public class PGenerate{
 	public static final int BILINEAR = 1;
 	public static final int BICUBIC = 2;
 	
-	private static final MatrixF matrixA;
-	private static final MatrixF matrixC;
+	private static final Matrix matrixA;
+	private static final Matrix matrixC;
 
 	static{
-		matrixA = new MatrixF(4, 4);
-		matrixA.setRow(0, 1f, 0f, 0f, 0f);
-		matrixA.setRow(1, 0f, 0f, 1f, 0f);
-		matrixA.setRow(2, -3f, 3f, -2f, -1f);
-		matrixA.setRow(3, 2f, -2f, 1f, 1f);
-		
-		matrixC = new MatrixF(4, 4);
-		matrixC.setColumn(0, 1f, 0f, 0f, 0f);
-		matrixC.setColumn(1, 0f, 0f, 1f, 0f);
-		matrixC.setColumn(2, -3f, 3f, -2f, -1f);
-		matrixC.setColumn(3, 2f, -2f, 1f, 1f);
+		matrixA = new Matrix(1f, 0f, 0f, 0f, 0f, 0f, 1f, 0f, -3f, 3f, -2f, -1f, 2f, -2f, 1f, 1f);
+		matrixC = new Matrix(1f, 0f, -3f, 2f, 0f, 0f, 3f, -2f, 0f, 1f, -2f, 1f, 0f, 0f, -1f, 1f);
 	}
 
 	public PGenerate(int width, int height){
@@ -125,7 +118,6 @@ public class PGenerate{
 				Point point = new Point(i, j);
 				if(!generatedMap.containsKey(point)){
 					float pointValue = 0f;
-					
 					pointValue += noise(i, j, 4);
 					pointValue += noise(i, j, 3) / 2f;
 					pointValue += noise(i, j, 2) / 4f;
@@ -136,7 +128,7 @@ public class PGenerate{
 				value += generatedMap.get(point);
 			}
 		}
-		setValue(y, x, value / 9f);
+		setValue(x, y, value / 9f);
 		//Good place to add mobs and rare objects
 		/*if(Sys.chance(.0005d)){
 			
@@ -273,25 +265,24 @@ public class PGenerate{
 		float fxy11 = (((rawValue(x2, y2, power) - rawValue(x0, y2, power)) / 2f) - fx10) / 2f;		
 
 		//Create the beta matrix
-		MatrixF matrixB = new MatrixF(4, 4);
-		matrixB.setRow(0, f00, f01, fy00, fy01);
-		matrixB.setRow(1, f10, f11, fy10, fy11);
-		matrixB.setRow(2, fx00, fx01, fxy00, fxy01);
-		matrixB.setRow(3, fx10, fx11, fxy10, fxy11);
+		Matrix matrixB = new Matrix(f00, f01, fy00, fy01, f10, f11, fy10, fy11, fx00, fx01, fxy00, fxy01, fx10, fx11, fxy10, fxy11);
 		
 		//Perform the multiplication for the coefficient matrix
-		MatrixF coeffMatrix = matrixA.multiply(matrixB.multiply(matrixC));
+		Matrix coeffMatrix = new Matrix();
+		Matrix.multiply(matrixC, matrixB, coeffMatrix);
+		Matrix.multiply(coeffMatrix, matrixA, coeffMatrix);
 		
 		//Create the vectors for our point
-		MatrixF vecX = new MatrixF(4, 1);
-		vecX.setRow(0, 1f, (float)mappedX, (float)Math.pow((double)mappedX, 2f), (float)Math.pow((double)mappedX, 3f));
+		Vector vecX = new Vector(1f, (float)mappedX, (float)Math.pow((double)mappedX, 2f));
+		float wa = (float)Math.pow((double)mappedX, 3f);
 	
-		MatrixF vecY = new MatrixF(1, 4);
-		vecY.setColumn(0, 1f, (float)mappedY, (float)Math.pow((double)mappedY, 2f), (float)Math.pow((double)mappedY, 3f));
+		Vector vecY = new Vector(1f, (float)mappedY, (float)Math.pow((double)mappedY, 2f));
+		float wb = (float)Math.pow((double)mappedY, 3f);
 		
-		//Perform the final multiplication and extract the interpolated value
-		MatrixF valueMatrix = vecX.multiply(coeffMatrix.multiply(vecY));
-		
-		return valueMatrix.get(0, 0);
+		//Perform the final multiplications and obtain the interpolated value
+		Vector c = new Vector(0f, 0f, 0f);
+		float wc = Matrix.multiply(coeffMatrix, vecY, wb, c);
+		float interpValue = Vector.multiply(vecX, wa, c, wc);
+		return interpValue;
 	}
 }	

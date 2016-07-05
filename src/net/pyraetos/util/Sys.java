@@ -3,6 +3,9 @@ package net.pyraetos.util;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -24,6 +27,7 @@ public abstract class Sys{
 	public static final byte WEST = 3;
 	private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("########.##");
 	private static final Random RANDOM = new Random();
+	public static final float PI = (float)Math.PI;
 
 	public static void thread(Runnable r){
 		new Thread(r).start();
@@ -33,8 +37,20 @@ public abstract class Sys{
 		return (float)Math.sin(theta);
 	}
 	
+	public static float asin(float theta){
+		return (float)Math.asin(theta);
+	}
+	
 	public static float cos(float theta){
 		return (float)Math.cos(theta);
+	}
+	
+	public static float acos(float theta){
+		return (float)Math.acos(theta);
+	}
+	
+	public static float tan(float theta){
+		return (float)Math.tan(theta);
 	}
 	
 	public static String[] tokenize(String string, String separator){
@@ -46,25 +62,48 @@ public abstract class Sys{
 		return list.toArray(new String[list.size()]);
 	}
 	
-	public static double simplifyAngled(double angle){
+	public static float toRadians(float angle){
+		return (angle * (float)Math.PI) / 180f;
+	}
+	
+	public static float toDegrees(float theta){
+		return (theta * 180f) / (float)Math.PI;
+	}
+	
+	public static float simplifyAngled(float angle){
 		while(angle < 0) angle += 360;
 		while(angle > 360f) angle -= 360f;
 		return angle;
 	}
 	
-	public static double simplifyAngler(double theta){
-		while(theta < 0) theta += (2f * Math.PI);
-		while(theta > (2f * Math.PI)) theta -= (2f * Math.PI);
+	public static float simplifyAngler(float theta){
+		while(theta < 0) theta += (2f * (float)Math.PI);
+		while(theta > (2f * (float)Math.PI)) theta -= (2f * (float)Math.PI);
 		return theta;
 	}
 	
-	public static boolean between(double theta, double min, double max){
-		theta = simplifyAngler(theta);
-		min = simplifyAngler(min);
-		max = simplifyAngler(max);
+	public static boolean betweenSimplified(float theta, float min, float max){
+		theta = simplifyAngler((float)theta);
+		min = simplifyAngler((float)min);
+		max = simplifyAngler((float)max);
 		if(min > max)
 			return theta >= min || theta <= max;
 		return theta <= max && theta >= min;
+	}
+	
+	public static boolean between(float theta, float min, float max){
+		if(min > max)
+			return theta >= min || theta <= max;
+		return theta <= max && theta >= min;
+	}
+	
+	//Modified for OpenGL space
+	public static float direction(float x, float y){
+		return simplifyAngler((float)Math.atan2(y, x) - PI / 2f);
+	}
+	
+	public static float distance(float x, float y){
+		return (float)Math.round(Math.sqrt(x*x + y*y));
 	}
 	
 	public static boolean equal(Object...objects){
@@ -78,10 +117,35 @@ public abstract class Sys{
 	}
 	
 	public static long time(){
-		return System.nanoTime();
+		return System.currentTimeMillis();
+	}
+
+	public static void timer(long begin){
+		Sys.debug(time() - begin);
+	}
+	
+	public static String load(String filename){
+		File file = new File(filename);
+		String s = "";
+		if(!file.exists())
+			return s;
+		try{
+			FileReader reader = new FileReader(filename);
+			int i = reader.read();
+			while(i != -1){
+				s += (char)i;
+				i = reader.read();
+			}
+			reader.close();
+			return s;
+		}catch(IOException e){
+			return s;
+		}
 	}
 	
 	public static void sleep(long time){
+		if(time < 0)
+			return;
 		try {
 			Thread.sleep(time);
 		} catch (InterruptedException e) {
@@ -111,6 +175,12 @@ public abstract class Sys{
 		int green = RANDOM.nextInt(256);
 		int blue = RANDOM.nextInt(256);
 		return new Color(red, green, blue);
+	}
+	
+	public static Vector randomColorV(){
+		Color c = randomColor();
+		float[] cf = c.getRGBColorComponents(new float[3]);
+		return new Vector(cf[0], cf[1], cf[2]);
 	}
 	
 	public static InputStream getURLStream(String url){
@@ -192,6 +262,10 @@ public abstract class Sys{
 	
 	public static int distanceFrom(int x0, int y0, int x1, int y1){
 		return (int)Math.round(Math.sqrt(Math.pow(Math.max(x0, x1) - Math.min(x0, x1), 2) + Math.pow(Math.max(y0, y1) - Math.min(y0, y1), 2)));
+	}
+	
+	public static float distanceFrom(Vector a, Vector b){
+		return (float)Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2) + Math.pow(a.z - b.z, 2));
 	}
 	
 	public static long randomSeed(){
