@@ -58,26 +58,28 @@ public class Matrix implements Serializable{
 		v30 = n30; v31 = n31; v32 = n32; v33 = n33;
 	}
 
+	
 	public static void multiply(Matrix a, Matrix b, Matrix c){
-		float cv00 = a.v00*b.v00 + a.v10*b.v01 + a.v20*b.v02 + a.v30*b.v03;
-		float cv01 = a.v01*b.v00 + a.v11*b.v01 + a.v21*b.v02 + a.v31*b.v03;
-		float cv02 = a.v02*b.v00 + a.v12*b.v01 + a.v22*b.v02 + a.v32*b.v03;
-		float cv03 = a.v03*b.v00 + a.v13*b.v01 + a.v23*b.v02 + a.v33*b.v03;
+		float cv00 = a.v00*b.v00 + a.v01*b.v10 + a.v02*b.v20 + a.v03*b.v30;
+		float cv01 = a.v00*b.v01 + a.v01*b.v11 + a.v02*b.v21 + a.v03*b.v31;
+		float cv02 = a.v00*b.v02 + a.v01*b.v12 + a.v02*b.v22 + a.v03*b.v32;
+		float cv03 = a.v00*b.v03 + a.v01*b.v13 + a.v02*b.v23 + a.v03*b.v33;
 		
-		float cv10 = a.v00*b.v10 + a.v10*b.v11 + a.v20*b.v12 + a.v30*b.v13;
-		float cv11 = a.v01*b.v10 + a.v11*b.v11 + a.v21*b.v12 + a.v31*b.v13;
-		float cv12 = a.v02*b.v10 + a.v12*b.v11 + a.v22*b.v12 + a.v32*b.v13;
-		float cv13 = a.v03*b.v10 + a.v13*b.v11 + a.v23*b.v12 + a.v33*b.v13;
+		float cv10 = a.v10*b.v00 + a.v11*b.v10 + a.v12*b.v20 + a.v13*b.v30;
+		float cv11 = a.v10*b.v01 + a.v11*b.v11 + a.v12*b.v21 + a.v13*b.v31;
+		float cv12 = a.v10*b.v02 + a.v11*b.v12 + a.v12*b.v22 + a.v13*b.v32;
+		float cv13 = a.v10*b.v03 + a.v11*b.v13 + a.v12*b.v23 + a.v13*b.v33;
 		
-		float cv20 = a.v00*b.v20 + a.v10*b.v21 + a.v20*b.v22 + a.v30*b.v23;
-		float cv21 = a.v01*b.v20 + a.v11*b.v21 + a.v21*b.v22 + a.v31*b.v23;
-		float cv22 = a.v02*b.v20 + a.v12*b.v21 + a.v22*b.v22 + a.v32*b.v23;
-		float cv23 = a.v03*b.v20 + a.v13*b.v21 + a.v23*b.v22 + a.v33*b.v23;
-		
-		float cv30 = a.v00*b.v30 + a.v10*b.v31 + a.v20*b.v32 + a.v30*b.v33;
-		float cv31 = a.v01*b.v30 + a.v11*b.v31 + a.v21*b.v32 + a.v31*b.v33;
-		float cv32 = a.v02*b.v30 + a.v12*b.v31 + a.v22*b.v32 + a.v32*b.v33;
-		float cv33 = a.v03*b.v30 + a.v13*b.v31 + a.v23*b.v32 + a.v33*b.v33;
+		float cv20 = a.v20*b.v00 + a.v21*b.v10 + a.v22*b.v20 + a.v23*b.v30;
+		float cv21 = a.v20*b.v01 + a.v21*b.v11 + a.v22*b.v21 + a.v23*b.v31;
+		float cv22 = a.v20*b.v02 + a.v21*b.v12 + a.v22*b.v22 + a.v23*b.v32;
+		float cv23 = a.v20*b.v03 + a.v21*b.v13 + a.v22*b.v23 + a.v23*b.v33;
+
+		float cv30 = a.v30*b.v00 + a.v31*b.v10 + a.v32*b.v20 + a.v33*b.v30;
+		float cv31 = a.v30*b.v01 + a.v31*b.v11 + a.v32*b.v21 + a.v33*b.v31;
+		float cv32 = a.v30*b.v02 + a.v31*b.v12 + a.v32*b.v22 + a.v33*b.v32;
+		float cv33 = a.v30*b.v03 + a.v31*b.v13 + a.v32*b.v23 + a.v33*b.v33;
+
 		c.v00 = cv00;
 		c.v01 = cv01;
 		c.v02 = cv02;

@@ -16,9 +16,8 @@ public class PGenerate{
 	/*
 	 * Todo:
 	 * 
-	 * 1. fix bicubic for new matrices
-	 * 2. extend coordinate system to negative numbers
-	 * 3. implement region based double layer data structure
+	 * 1. extend coordinate system to negative numbers
+	 * 2. implement region based double layer data structure
 	 * 
 	 */
 	
@@ -269,8 +268,8 @@ public class PGenerate{
 		
 		//Perform the multiplication for the coefficient matrix
 		Matrix coeffMatrix = new Matrix();
-		Matrix.multiply(matrixC, matrixB, coeffMatrix);
-		Matrix.multiply(coeffMatrix, matrixA, coeffMatrix);
+		Matrix.multiply(matrixB, matrixC, coeffMatrix);
+		Matrix.multiply(matrixA, coeffMatrix, coeffMatrix);
 		
 		//Create the vectors for our point
 		Vector vecX = new Vector(1f, (float)mappedX, (float)Math.pow((double)mappedX, 2f));
