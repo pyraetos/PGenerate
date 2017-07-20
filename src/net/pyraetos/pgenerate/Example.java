@@ -6,8 +6,8 @@ import net.pyraetos.util.Sys;
 
 public abstract class Example {
 
-	public static int side = 512;
-	public static int inc = 32;
+	public static int side = 1024;
+	public static int inc = 64;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
@@ -32,7 +32,13 @@ public abstract class Example {
 	}
 	
 	public static void main(String[] args) {
-		pg = new PGenerate(side, side, 1124);
+		//pixelMapExample();
+		multiLayerMapExample();
+	}
+	
+	public static void pixelMapExample(){
+		pg = new PGenerate(side, side);
+		pg.setInterpolation(PGenerate.BICUBIC);
 		long start = System.currentTimeMillis();
 		for(int n = 0; n < side; n += inc){
 			Sys.thread(new DivideNConquer(n));
@@ -47,7 +53,11 @@ public abstract class Example {
 		long time = System.currentTimeMillis() - start;
 		float seconds = (float) (((double)time)/1000d);
 		Sys.debug("It took " + seconds + "s to complete.");
-		new HeightMap(pg).save();
+		new TerrainMap(pg).save();
+	}
+
+	public static void multiLayerMapExample(){
+		new ScorpionMap(side, side).save();
 	}
 
 }
