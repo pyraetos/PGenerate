@@ -18,11 +18,22 @@ public abstract class MultiLayerMap extends BufferedImage{
 	protected int[] pixels;
 	protected static AtomicInteger done = new AtomicInteger(0);
 	
-	public static final int SIDE = 1024;
-	public static final int INC = 64;
+	protected int side = 1024;
+	protected int inc = 64;
+	protected int layercutoff;
 	
-	public MultiLayerMap(int width, int height){
+	/**
+	 * Not tested with width != height
+	 * @param width
+	 * @param height
+	 */
+	public MultiLayerMap(int width, int height, int toplayer){
 		super(width, height, BufferedImage.TYPE_INT_RGB);
+		layercutoff = toplayer;
+		if(width == height){
+			side = width;
+			inc = width / 16;
+		}
 		this.pg = null;
 		this.width = width;
 		this.height = height;
@@ -59,8 +70,8 @@ public abstract class MultiLayerMap extends BufferedImage{
 			this.n = start;
 		}
 		public void run(){
-			for(int i = n; i < n + INC; i++){
-				for(int j = 0; j < SIDE; j++){
+			for(int i = n; i < n + inc; i++){
+				for(int j = 0; j < side; j++){
 					pg.generate(i, j);
 				}
 			}
@@ -68,21 +79,31 @@ public abstract class MultiLayerMap extends BufferedImage{
 		}
 	}
 	
-	protected void layer(){
+	protected void layer(int layer){
+		if(layer > layercutoff) return;
+		System.out.println("Starting layer " + layer);
 		pg = new PGenerate(width, height);
 		pg.setInterpolation(PGenerate.BICUBIC);
 		done.set(0);
-		for(int n = 0; n < SIDE; n += INC){
+		for(int n = 0; n < side; n += inc){
 			Sys.thread(new DivideNConquer(n));
 		}
-		while(done.get() != SIDE / INC){
+		while(done.get() != side / inc){
 			try {
 				Thread.sleep(50);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
+		for (int i = 0; i < width; i++) {
+			for (int j = 0; j < height; j++) {
+				Color c = colorForLayer(layer, i, j);
+				if(c != null)
+					pixels[i * height + j] = c.getRGB();
+			}
+		}
+		layer(++layer);
 	}
-	
-	public abstract void layer(int layer);
+
+	protected abstract Color colorForLayer(int layer, int i, int j);
 }
