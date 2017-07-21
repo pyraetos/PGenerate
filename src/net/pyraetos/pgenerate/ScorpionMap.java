@@ -34,8 +34,8 @@ public class ScorpionMap extends MultiLayerMap {
 	protected Color colorForLayer(int layer, int i, int j){
 		switch(layer){
 		case(0): return getBrownGradient(j, i);
-		case(1): if(pg.getValue(i, j) > .75) return OCP_LIGHT_GREEN;
-		case(2): if(pg.getValue(i, j) > 1) return OCP_GREEN;		
+		case(1): if(pg.getValue(i, j) > .5) return OCP_LIGHT_GREEN;
+		case(2): if(pg.getValue(i, j) > .75) return OCP_GREEN;		
 		case(3): if(pg.getValue(i, j) > 1.35) return OCP_DARK_BROWN;		
 		case(4): if(pg.getValue(i, j) > 2) return OCP_GRAY;			
 		}

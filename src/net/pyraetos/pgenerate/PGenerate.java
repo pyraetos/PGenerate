@@ -40,6 +40,12 @@ public class PGenerate{
 	public static final int BILINEAR = 1;
 	public static final int BICUBIC = 2;
 	
+	//Options
+	public static final int NORMAL = 10;
+	public static final int EXTRA_WIDE = 11;
+	
+	private static int stretch = NORMAL;
+	
 	private static final Matrix matrixA;
 	private static final Matrix matrixC;
 
@@ -70,6 +76,14 @@ public class PGenerate{
 		if(interp < 0 || interp > 2)
 			return;
 		interpolation = interp;
+	}
+	
+	public void setOption(int option){
+		switch(option){
+		case(NORMAL): stretch = NORMAL; return;
+		case(EXTRA_WIDE): stretch = EXTRA_WIDE; return;
+		default: return;
+		}
 	}
 	
 	public int getWidth(){
