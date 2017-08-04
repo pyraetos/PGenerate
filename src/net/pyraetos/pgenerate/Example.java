@@ -6,8 +6,8 @@ import net.pyraetos.util.Sys;
 
 public abstract class Example {
 
-	public static int side = 1024;
-	public static int inc = 64;
+	public static int side = 4096;
+	public static int inc = 256;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
