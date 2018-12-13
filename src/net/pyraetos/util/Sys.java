@@ -11,6 +11,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -26,6 +27,7 @@ public abstract class Sys{
 	public static final byte EAST = 2;
 	public static final byte WEST = 3;
 	private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("########.##");
+	private static final DecimalFormat DECIMAL_FORMAT1 = new DecimalFormat("########.#");
 	private static final Random RANDOM = new Random();
 	public static final float PI = (float)Math.PI;
 
@@ -272,7 +274,72 @@ public abstract class Sys{
 		return Math.round(System.currentTimeMillis() * (1 - (2*RANDOM.nextDouble())));
 	}
 	
+	public static int amean(int...nums){
+		int mean = 0;
+		for(int n : nums) mean += n;
+		mean /= nums.length;
+		return mean;
+	}
+	
+	public static int gmean(int...nums){
+		int mean = 1;
+		for(int n : nums) mean *= n;
+		mean = (int)Math.round(Math.pow(mean, 1d / ((float)nums.length)));
+		return mean;
+	}
+	
+	public static void histogram(int bars, int num_bins, int...nums){
+		Arrays.sort(nums);
+		float maxVal = nums[nums.length-1];
+		int bins[] = new int[num_bins+1];
+		for(int i = 0; i < bins.length; i++) bins[i] = 0;
+		for(int num : nums){
+			int bin = (int)Math.floor(((float)num / (float)maxVal) * num_bins);
+			bins[bin]++;
+		}
+		int bin_i = 0;
+		for(int bin : bins){
+			int barsForYou = (int)(((float)bars) * (((float)bin) / (float)nums.length));
+			System.out.print((int)((float)maxVal / (float)num_bins)*bin_i + "|");
+			for(int i = 0; i < barsForYou; i++)
+				System.out.print("-");
+			System.out.println();
+			bin_i++;
+		}
+	}
+	
+	public static void histogram(int bars, int num_bins, float...nums){
+		Arrays.sort(nums);
+		float maxVal = nums[nums.length-1];
+		int bins[] = new int[num_bins+1];
+		for(int i = 0; i < bins.length; i++) bins[i] = 0;
+		for(float num : nums){
+			int bin = (int)Math.floor((num / maxVal) * num_bins);
+			bins[bin]++;
+		}
+		int bin_i = 0;
+		for(int bin : bins){
+			int barsForYou = (int)(((float)bars) * (((float)bin) / (float)nums.length));
+			System.out.print((maxVal / (float)num_bins)*bin_i + "|");
+			for(int i = 0; i < barsForYou; i++)
+				System.out.print("-");
+			System.out.println();
+			bin_i++;
+		}
+	}
+	
+	public static int hmean(int...nums){
+		float mean = 0;
+		for(int n : nums) mean += (1d / (float)n);
+		mean = ((float)nums.length) / mean;
+		return Math.round(mean);
+	}
+	
 	public static double round(double d){
 		return Double.parseDouble(DECIMAL_FORMAT.format(d));
+	}
+	
+	public static double round1(double d){
+		return Double.parseDouble(DECIMAL_FORMAT1.format(d));
 	}
 }

@@ -27,6 +27,10 @@ public class Point{
 		return true;
 	}
 
+	public String toString(){
+		return "(" + x + ", " + y + ")";
+	}
+	
 	private int x;
 	private int y;
 	
