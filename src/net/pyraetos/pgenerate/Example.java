@@ -6,8 +6,8 @@ import net.pyraetos.util.Sys;
 
 public abstract class Example {
 
-	public static int side = 4096;
-	public static int inc = 256;
+	public static int side = 1024;
+	public static int inc = 32;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
@@ -26,38 +26,42 @@ public abstract class Example {
 				for(int j = 0; j < side; j++){
 					pg.generate(i, j);
 				}
+				done.addAndGet(side);
 			}
-			done.incrementAndGet();
 		}
 	}
 	
 	public static void main(String[] args) {
-		//pixelMapExample();
-		multiLayerMapExample();
+		pixelMapExample();
 	}
 	
 	public static void pixelMapExample(){
-		pg = new PGenerate(side, side);
+		pg = new PGenerate(side, side, 2);
 		pg.setInterpolation(PGenerate.BICUBIC);
 		long start = System.currentTimeMillis();
+		int total = side*side;
+		Sys.thread(()->{
+			try {
+				while(done.get() != total) {
+					Sys.sleep(1000);
+					Sys.debug(Sys.round((((double)done.get())/((double)total))*100d)+"%");
+				}
+				long time = System.currentTimeMillis() - start;
+				float seconds = (float) (((double)time)/1000d);
+				Sys.debug("It took " + seconds + "s to complete.");
+			}catch(Exception e) {}
+		});
 		for(int n = 0; n < side; n += inc){
 			Sys.thread(new DivideNConquer(n));
 		}
-		while(done.get() != side / inc){
+		while(done.get() != total){
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
-		long time = System.currentTimeMillis() - start;
-		float seconds = (float) (((double)time)/1000d);
-		Sys.debug("It took " + seconds + "s to complete.");
-		new TerrainMap(pg).save();
-	}
-
-	public static void multiLayerMapExample(){
-		new ScorpionMap(side, side).save();
+		new HeightMap(pg).save();
 	}
 
 }
