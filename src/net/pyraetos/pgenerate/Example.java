@@ -2,11 +2,15 @@ package net.pyraetos.pgenerate;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.swing.ImageIcon;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+
 import net.pyraetos.util.Sys;
 
 public abstract class Example {
 
-	public static int side = 1024;
+	public static int side = 512;
 	public static int inc = 32;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
@@ -34,9 +38,22 @@ public abstract class Example {
 	public static void main(String[] args) {
 		pixelMapExample();
 	}
-	
+
+	public static void display() {
+		JFrame frame = new JFrame();
+		ImageIcon img = new ImageIcon("map.png");
+		JLabel label = new JLabel(img);
+		frame.add(label);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.pack();
+		frame.setVisible(true);
+		frame.setTitle("PGenerate");
+		frame.requestFocus();
+	}
+
+
 	public static void pixelMapExample(){
-		pg = new PGenerate(side, side, 2);
+		pg = new PGenerate(side, side);
 		pg.setInterpolation(PGenerate.BICUBIC);
 		long start = System.currentTimeMillis();
 		int total = side*side;
@@ -46,6 +63,7 @@ public abstract class Example {
 					Sys.sleep(1000);
 					Sys.debug(Sys.round((((double)done.get())/((double)total))*100d)+"%");
 				}
+				
 				long time = System.currentTimeMillis() - start;
 				float seconds = (float) (((double)time)/1000d);
 				Sys.debug("It took " + seconds + "s to complete.");
@@ -61,7 +79,8 @@ public abstract class Example {
 				e.printStackTrace();
 			}
 		}
-		new HeightMap(pg).save();
+		new TerrainMap(pg).save();
+		display();
 	}
 
 }
