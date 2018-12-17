@@ -8,10 +8,10 @@ import javax.swing.JLabel;
 
 import net.pyraetos.util.Sys;
 
-public abstract class Example {
+public abstract class Example{
 
 	public static int side = 512;
-	public static int inc = 32;
+	public static int inc = 64;
 	
 	public static AtomicInteger done = new AtomicInteger(0);
 	public static PGenerate pg;
